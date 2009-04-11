@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:fb="http://www.facebook.com/2008/fbml">
+
+<head>
+</head>
+
+<body>
+<script src="http://static.ak.connect.facebook.com/js/api_lib/v0.4/FeatureLoader.js.php" type="text/javascript"></script>
+
+<p>
+<fb:profile-pic uid='loggedinuser' facebook-logo='true'></fb:profile-pic>Select one of my photos
+</p>
+<div id="photoSpace">Photos will replace this text</div>
+
+<script type="text/javascript">
+
+var albumCovers = "";
+
+    FB_RequireFeatures(["XFBML","Api"], function(){
+        FB.Facebook.init("adb67240e9ad335110fb90af62b630de", "signposterdaveboden/crossdomain/xd_receiver.htm");
+
+        //FB.FBDebug.isEnabled = true;
+        //FB.FBDebug.logLevel = 4;
+        
+        var api = FB.Facebook.apiClient;
+        api.requireLogin(function(exception){
+
+            api.photos_getAlbums(api.get_session().uid, null, function(albums) {
+                      
+                for(var i = 0; i < albums.length; i++) {
+                    var album = albums[i];
+                    if(album.cover_pid != "") {
+                        albumCovers += "<a onclick='displayAlbum(\"" + album.aid + "\")'><fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo></a>";
+                    	//albumCovers += "<fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo>";
+                    } else {
+                        //Ignore photos without cover pictures, they're most probably empty
+                    }
+                }
+                
+                document.getElementById("photoSpace").innerHTML = albumCovers;
+
+                FB.XFBML.Host.parseDomTree();
+            });
+        });
+        
+    });
+
+    function displayAlbum(aid) {
+        var api = FB.Facebook.apiClient;
+        api.requireLogin(function(exception){
+        	document.getElementById("photoSpace").innerHTML = "Fetching contents of album...";
+	        api.fql_query("SELECT pid FROM photo WHERE aid = '" + aid + "'", function(albumPhotos) {
+	            var photoDisplay = "";
+	            for(var i = 0; i < albumPhotos.length; i++) {
+		            var photo = albumPhotos[i];
+	            	photoDisplay += "<fb:photo pid='" + photo.pid + "' size='small'></fb:photo>";
+	            }
+	            
+	            document.getElementById("photoSpace").innerHTML = "<u><a onclick='displayAlbumList()'>Back to album list</a></u><br/>" + photoDisplay;
+	            
+	            FB.XFBML.Host.parseDomTree();
+	            
+	        });
+        });
+    }
+
+    function displayAlbumList() {
+        document.getElementById("photoSpace").innerHTML = albumCovers;
+        
+        FB.XFBML.Host.parseDomTree();        
+    }
+    
+</script>
+
+</body>
+</html>
