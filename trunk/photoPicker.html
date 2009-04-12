@@ -12,12 +12,15 @@
 </p>
 <div id="photoSpace">Photos will replace this text</div>
 
+<!-- Pickup the FB_API_KEY value -->
+<script type="text/javascript" src="photoPickerConfig.js"></script>
+
 <script type="text/javascript">
 
 var albumCovers = "";
 
     FB_RequireFeatures(["XFBML","Api"], function(){
-        FB.Facebook.init("55fad604d184f7ffbd19f8491e1f6d30", "crossdomain/xd_receiver.htm");
+        FB.Facebook.init(FB_API_KEY, "crossdomain/xd_receiver.htm");
 
         //FB.FBDebug.isEnabled = true;
         //FB.FBDebug.logLevel = 4;
