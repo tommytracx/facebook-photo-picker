@@ -2,15 +2,51 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:fb="http://www.facebook.com/2008/fbml">
 
 <head>
+ <style type="text/css">
+        @import "dojoroot/dijit/themes/tundra/tundra.css";
+        @import "dojoroot/dojo/resources/dojo.css"
+    </style>
+    <script type="text/javascript" src="dojoroot/dojo/dojo.js" 
+      djConfig="parseOnLoad: true, isDebug: true"></script>
+      
+    <script type="text/javascript">
+        dojo.require("dojo.parser");
+        dojo.require("dijit.form.FilteringSelect");
+        dojo.require("dijit.form.RadioButton");
+        dojo.require("dijit.ProgressBar");
+        dojo.require("dojo.data.ItemFileReadStore");
+    </script>
 </head>
 
 <body>
 <script src="http://static.ak.connect.facebook.com/js/api_lib/v0.4/FeatureLoader.js.php" type="text/javascript"></script>
 
-<p>
-<fb:profile-pic uid='loggedinuser' facebook-logo='true'></fb:profile-pic>Select one of my photos
-</p>
-<div id="photoSpace">Photos will replace this text</div>
+<script>
+var friends = new Object();
+var friendsStore;
+function friendSelectionChanged() {
+}
+</script>
+
+<div class="tundra">
+    <input dojoType="dijit.form.RadioButton" id="photosMine" name="photosWho" 
+           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').setDisabled(true)"/>
+           <label for="photosMine"> My Photos </label>
+    <br/>
+    <input dojotype="dijit.form.RadioButton" id="photosFriends" name="photosWho" 
+           value="friends" type="radio" onclick="dijit.byId('friendSelection').setDisabled(false)"/> 
+           <label for="photosFriends"> Friends' Photos </label>
+
+    <select dojoType="dijit.form.FilteringSelect"
+           name="friendSelection"
+           id="friendSelection"
+           searchDelay=0
+           onChange="friendSelectionChanged"
+           disabled="disabled">
+    </select>
+</div>
+
+<div id="photoSpace"><div dojoType="dijit.ProgressBar" style="width:300px" jsId="jsProgress" id="photoLoadProgress" indeterminate="true"></div></div>
 
 <!-- Pickup the FB_API_KEY value -->
 <script type="text/javascript" src="photoPickerConfig.js"></script>
@@ -29,21 +65,53 @@ var albumCovers = "";
         api.requireLogin(function(exception){
 
             api.photos_getAlbums(api.get_session().uid, null, function(albums) {
-                      
+                var photoTableWidth = 2;
+                var photoTableCount = 0;
+
+                albumCovers += "<table>";
+                
                 for(var i = 0; i < albums.length; i++) {
                     var album = albums[i];
                     if(album.cover_pid != "") {
-                        albumCovers += "<a onclick='displayAlbum(\"" + album.aid + "\")'><fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo></a>";
-                    	//albumCovers += "<fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo>";
+                        if(photoTableCount % photoTableWidth == 0) {
+                            if(i != photoTableCount) {
+                                albumCovers += "</tr>";
+                            }
+                            albumCovers += "<tr>";
+                        }
+                        
+                        albumCovers += "<td><a onclick='displayAlbum(\"" + album.aid + "\")'><fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo><br/>" + album.name + "</a></td>";
+
+                        photoTableCount++;
                     } else {
                         //Ignore photos without cover pictures, they're most probably empty
                     }
                 }
+
+                albumCovers += "</tr></table>";
                 
                 document.getElementById("photoSpace").innerHTML = albumCovers;
 
                 FB.XFBML.Host.parseDomTree();
             });
+
+            api.fql_query("SELECT uid, name FROM user WHERE uid IN (SELECT uid2 FROM friend WHERE uid1 = " + api.get_session().uid + ") order by first_name", function(results, ex) {
+                var friendsItems = new Array();
+                for(var i = 0; i < results.length; i++) {
+                    friendsItems[i] = {"uid" : results[i].uid, "name" : results[i].name};
+                }
+
+                friends = {"identifier" : "uid", "label" : "name", "items" : friendsItems};
+
+                friendsStore = new dojo.data.ItemFileReadStore({data: friends});
+                dijit.byId('friendSelection').store = friendsStore;
+                dijit.byId('friendSelection').searchAttr = "name";
+
+                //Enable the selection box now?
+
+                //alert(dojo.toJson(friends, true, " "));
+            });
+
         });
         
     });
