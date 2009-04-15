@@ -24,6 +24,7 @@
         dojo.require("dojo.parser");
         dojo.require("dijit.form.FilteringSelect");
         dojo.require("dijit.form.RadioButton");
+        dojo.require("dijit.form.Button");
         dojo.require("dijit.ProgressBar");
         dojo.require("dojo.data.ItemFileReadStore");
     </script>
@@ -41,11 +42,11 @@ var friendsStore;
 
 <div class="tundra">
     <input dojoType="dijit.form.RadioButton" id="photosMine" name="photosWho" 
-           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',true)"/>
+           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',true) ; displayAlbumList()"/>
            <label for="photosMine"> My Photos </label>
     <br/>
     <input dojotype="dijit.form.RadioButton" id="photosFriends" name="photosWho" 
-           value="friends" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',false)"/> 
+           value="friends" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',false); displayAlbumList()"/> 
            <label for="photosFriends"> Friends' Photos </label>
 
     <select dojoType="dijit.form.FilteringSelect"
@@ -56,7 +57,7 @@ var friendsStore;
            disabled="disabled">
     </select>
 </div>
-
+<br/>
 <div id="photoSpace"><div dojoType="dijit.ProgressBar" style="width:300px" jsId="jsProgress" id="photoLoadProgress" indeterminate="true" class="tundra"></div></div>
 
 <script type="text/javascript">
@@ -113,7 +114,7 @@ var friendAlbumCovers = "";
 	            	photoDisplay += "<fb:photo pid='" + photo.pid + "' size='small'></fb:photo>";
 	            }
 	            
-	            document.getElementById("photoSpace").innerHTML = "<u><a onclick='displayAlbumList()'>Back to album list</a></u><br/>" + photoDisplay;
+	            document.getElementById("photoSpace").innerHTML = "<button dojoType='dijit.form.Button' onclick='displayAlbumList()'>Back to album list</button><br/>" + photoDisplay;
 	            
 	            FB.XFBML.Host.parseDomTree();
 	            
@@ -125,7 +126,7 @@ var friendAlbumCovers = "";
         if(dijit.byId('photosMine').attr('checked')) {
             document.getElementById("photoSpace").innerHTML = myAlbumCovers;
         } else {
-        	document.getElementById("photoSpace").innerHTML = friendsAlbumCovers;
+        	document.getElementById("photoSpace").innerHTML = friendAlbumCovers;
         }
         
         FB.XFBML.Host.parseDomTree();        
@@ -135,8 +136,8 @@ var friendAlbumCovers = "";
         friendUID = dijit.byId('friendSelection').attr('value');
 
         getAlbumsXFBML(friendUID, function(albumCovers) {
-            friendsAlbumCovers = albumCovers;
-            document.getElementById("photoSpace").innerHTML = friendsAlbumCovers;
+            friendAlbumCovers = albumCovers;
+            document.getElementById("photoSpace").innerHTML = friendAlbumCovers;
             FB.XFBML.Host.parseDomTree();                
         });
     }
@@ -150,7 +151,9 @@ var friendAlbumCovers = "";
 
     	var albumCovers = "";
     	
-    	FB.Facebook.apiClient.photos_getAlbums(uid, null, function(albums) {
+    	//FB.Facebook.apiClient.photos_getAlbums(uid, null, function(albums) {
+    	//Executing the cut-down FQL is quicker than getting all the unnecessary details back from photos_getAlbums()
+    	FB.Facebook.apiClient.fql_query("SELECT aid, cover_pid, name FROM album WHERE owner=" + uid, function(albums) {
             var photoTableWidth = 2;
             var photoTableCount = 0;
 
