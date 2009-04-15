@@ -6,8 +6,18 @@
         @import "dojoroot/dijit/themes/tundra/tundra.css";
         @import "dojoroot/dojo/resources/dojo.css"
     </style>
-    <script type="text/javascript" src="dojoroot/dojo/dojo.js" 
-      djConfig="parseOnLoad: true, isDebug: true"></script>
+
+	<!-- Pickup the FB_API_KEY and PHOTO_PICKER_DEBUG values -->
+	<script type="text/javascript" src="photoPickerConfig.js"></script>
+    
+    <script type="text/javascript">
+	    var djConfig = {
+	        parseOnLoad: true,
+	        isDebug: PHOTO_PICKER_DEBUG
+	    };
+    </script>
+    
+    <script type="text/javascript" src="dojoroot/dojo/dojo.js"></script>
       
     <script type="text/javascript">
         dojo.require("dojo.parser");
@@ -30,11 +40,11 @@ function friendSelectionChanged() {
 
 <div class="tundra">
     <input dojoType="dijit.form.RadioButton" id="photosMine" name="photosWho" 
-           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').setDisabled(true)"/>
+           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',true)"/>
            <label for="photosMine"> My Photos </label>
     <br/>
     <input dojotype="dijit.form.RadioButton" id="photosFriends" name="photosWho" 
-           value="friends" type="radio" onclick="dijit.byId('friendSelection').setDisabled(false)"/> 
+           value="friends" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',false)"/> 
            <label for="photosFriends"> Friends' Photos </label>
 
     <select dojoType="dijit.form.FilteringSelect"
@@ -46,10 +56,7 @@ function friendSelectionChanged() {
     </select>
 </div>
 
-<div id="photoSpace"><div dojoType="dijit.ProgressBar" style="width:300px" jsId="jsProgress" id="photoLoadProgress" indeterminate="true"></div></div>
-
-<!-- Pickup the FB_API_KEY value -->
-<script type="text/javascript" src="photoPickerConfig.js"></script>
+<div id="photoSpace"><div dojoType="dijit.ProgressBar" style="width:300px" jsId="jsProgress" id="photoLoadProgress" indeterminate="true" class="tundra"></div></div>
 
 <script type="text/javascript">
 
