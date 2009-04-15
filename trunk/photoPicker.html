@@ -7,9 +7,10 @@
         @import "dojoroot/dojo/resources/dojo.css"
     </style>
 
-	<!-- Pickup the FB_API_KEY and PHOTO_PICKER_DEBUG values -->
+	<!-- Pickup the FB_API_KEY and PHOTO_PICKER_DEBUG configuration values -->
 	<script type="text/javascript" src="photoPickerConfig.js"></script>
     
+    <!-- Initialise Dojo Javascript library -->
     <script type="text/javascript">
 	    var djConfig = {
 	        parseOnLoad: true,
@@ -31,11 +32,11 @@
 <body>
 <script src="http://static.ak.connect.facebook.com/js/api_lib/v0.4/FeatureLoader.js.php" type="text/javascript"></script>
 
-<script>
+<script type="text/javascript">
 var friends = new Object();
 var friendsStore;
-function friendSelectionChanged() {
-}
+
+
 </script>
 
 <div class="tundra">
@@ -60,7 +61,8 @@ function friendSelectionChanged() {
 
 <script type="text/javascript">
 
-var albumCovers = "";
+var myAlbumCovers = "";
+var friendAlbumCovers = "";
 
     FB_RequireFeatures(["XFBML","Api"], function(){
         FB.Facebook.init(FB_API_KEY, "crossdomain/xd_receiver.htm");
@@ -71,35 +73,12 @@ var albumCovers = "";
         var api = FB.Facebook.apiClient;
         api.requireLogin(function(exception){
 
-            api.photos_getAlbums(api.get_session().uid, null, function(albums) {
-                var photoTableWidth = 2;
-                var photoTableCount = 0;
-
-                albumCovers += "<table>";
-                
-                for(var i = 0; i < albums.length; i++) {
-                    var album = albums[i];
-                    if(album.cover_pid != "") {
-                        if(photoTableCount % photoTableWidth == 0) {
-                            if(i != photoTableCount) {
-                                albumCovers += "</tr>";
-                            }
-                            albumCovers += "<tr>";
-                        }
-                        
-                        albumCovers += "<td><a onclick='displayAlbum(\"" + album.aid + "\")'><fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo><br/>" + album.name + "</a></td>";
-
-                        photoTableCount++;
-                    } else {
-                        //Ignore photos without cover pictures, they're most probably empty
-                    }
-                }
-
-                albumCovers += "</tr></table>";
-                
-                document.getElementById("photoSpace").innerHTML = albumCovers;
-
-                FB.XFBML.Host.parseDomTree();
+        	//Get the album covers XFBML for the logged in user then, using a callback method,
+        	//store them away as the logged in user's albums and display them on the page.
+            getAlbumsXFBML(api.get_session().uid, function(albumCovers) {
+            	myAlbumCovers = albumCovers;
+            	document.getElementById("photoSpace").innerHTML = myAlbumCovers;
+                FB.XFBML.Host.parseDomTree();                
             });
 
             api.fql_query("SELECT uid, name FROM user WHERE uid IN (SELECT uid2 FROM friend WHERE uid1 = " + api.get_session().uid + ") order by first_name", function(results, ex) {
@@ -143,9 +122,63 @@ var albumCovers = "";
     }
 
     function displayAlbumList() {
-        document.getElementById("photoSpace").innerHTML = albumCovers;
+        if(dijit.byId('photosMine').attr('checked')) {
+            document.getElementById("photoSpace").innerHTML = myAlbumCovers;
+        } else {
+        	document.getElementById("photoSpace").innerHTML = friendsAlbumCovers;
+        }
         
         FB.XFBML.Host.parseDomTree();        
+    }
+
+    function friendSelectionChanged() {
+        friendUID = dijit.byId('friendSelection').attr('value');
+
+        getAlbumsXFBML(friendUID, function(albumCovers) {
+            friendsAlbumCovers = albumCovers;
+            document.getElementById("photoSpace").innerHTML = friendsAlbumCovers;
+            FB.XFBML.Host.parseDomTree();                
+        });
+    }
+
+    //Generate XFBML representing the albums that uid owns then call
+    //afterAsyncFetchFunction with the XFBML as a parameter.
+    //We use this 2nd order function callback because the album fetch
+    //happens in a separate thread and we want to perform our action
+    //after the thread has finished getting the album data. 
+    function getAlbumsXFBML(uid, afterAsyncFetchFunction) {
+
+    	var albumCovers = "";
+    	
+    	FB.Facebook.apiClient.photos_getAlbums(uid, null, function(albums) {
+            var photoTableWidth = 2;
+            var photoTableCount = 0;
+
+            albumCovers += "<table>";
+            
+            for(var i = 0; i < albums.length; i++) {
+                var album = albums[i];
+                if(album.cover_pid != "") {
+                    if(photoTableCount % photoTableWidth == 0) {
+                        if(i != photoTableCount) {
+                            albumCovers += "</tr>";
+                        }
+                        albumCovers += "<tr>";
+                    }
+                    
+                    albumCovers += "<td><a onclick='displayAlbum(\"" + album.aid + "\")'><fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo><br/>" + album.name + "</a></td>";
+
+                    photoTableCount++;
+                } else {
+                    //Ignore photos without cover pictures, they're most probably empty
+                }
+            }
+
+            albumCovers += "</tr></table>";
+
+            //Do the actions that have been specified for after the fetch has completed.
+            afterAsyncFetchFunction(albumCovers);
+        });
     }
     
 </script>
