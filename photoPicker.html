@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:fb="http://www.facebook.com/2008/fbml">
 
 <head>
- <style type="text/css">
+    <style type="text/css">
         @import "dojoroot/dijit/themes/tundra/tundra.css";
         @import "dojoroot/dojo/resources/dojo.css"
     </style>
@@ -43,27 +43,30 @@ var friendsStore;
 
 </script>
 
-<div class="tundra">
-    <input dojoType="dijit.form.RadioButton" id="photosMine" name="photosWho" 
-           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',true) ; displayAlbumList()"/>
-           <label for="photosMine"> My Photos </label>
-    <br/>
-    <input dojotype="dijit.form.RadioButton" id="photosFriends" name="photosWho" 
-           value="friends" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',false); displayAlbumList()"/> 
-           <label for="photosFriends"> Friends' Photos </label>
-    <br/>
-
-    &nbsp;<select dojoType="dijit.form.FilteringSelect"
-           name="friendSelection"
-           id="friendSelection"
-           style="width:150px"
-           searchDelay=0
-           onChange="friendSelectionChanged"
-           disabled="disabled">
-    </select>
+<div id="FacebookPhotoPicker"/>
+    <button dojoType='dijit.form.Button' id="FacebookPhotoPickerInitButton" onclick='initFacebookPhotoPicker()'>Browse Facebook Photos</button>
+	<div id="FacebookPhotoPickerInput" class="tundra" style="display: none">
+	    <input dojoType="dijit.form.RadioButton" id="photosMine" name="photosWho" 
+	           checked="checked" value="mine" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',true) ; displayAlbumList()"/>
+	           <label for="photosMine"> My Photos </label>
+	    <br/>
+	    <input dojotype="dijit.form.RadioButton" id="photosFriends" name="photosWho" 
+	           value="friends" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',false); displayAlbumList()"/> 
+	           <label for="photosFriends"> Friends' Photos </label>
+	    <br/>
+	
+	    &nbsp;<select dojoType="dijit.form.FilteringSelect"
+	           name="friendSelection"
+	           id="friendSelection"
+	           style="width:150px"
+	           searchDelay=0
+	           onChange="friendSelectionChanged"
+	           disabled="disabled">
+	    </select>
+	</div>
+	<br/>
+	<div id="photoSpace"></div>
 </div>
-<br/>
-<div id="photoSpace"></div>
 </td>
 <td valign="top">
   <div id="mainContent">Normal content is displayed while the user is not picking a photo</div>
@@ -75,6 +78,10 @@ var friendsStore;
 
 var myAlbumCovers = "";
 var friendAlbumCovers = "";
+
+function initFacebookPhotoPicker() {
+
+	dijit.byId("FacebookPhotoPickerInitButton").attr('disabled',true);
 
     FB_RequireFeatures(["XFBML","Api"], function(){
         FB.Facebook.init(FB_API_KEY, "crossdomain/xd_receiver.htm");
@@ -104,12 +111,16 @@ var friendAlbumCovers = "";
                 dijit.byId('friendSelection').store = friendsStore;
                 dijit.byId('friendSelection').searchAttr = "name";
 
-                //Enable the selection box now?
+                //Hide the Browse Facebook Photos button and show the user input widgets.
+                dijit.byId('FacebookPhotoPickerInitButton').domNode.style.display = "none";
+                document.getElementById("FacebookPhotoPickerInput").style.display = "inline";
             });
 
         });
         
     });
+    
+}
 
     function displayAlbum(aid) {
         var api = FB.Facebook.apiClient;
@@ -224,10 +235,12 @@ var friendAlbumCovers = "";
 
     //These are extension points; redefine these methods to change the mouseover behaviour.
     function showLargeImage(imagesource, text) {
-        var content = "<img src='" + imagesource + "' style='maxwidth: 100%'/>";
+        var content = "";
         if(text != null) {
-            content += "<br/>" + text;
+            content += text + "<br/>";
         }
+        content += "<img src='" + imagesource + "' style='maxwidth: 100%'/>";
+        
     	document.getElementById("photoPreview").innerHTML = content;
         document.getElementById("mainContent").style.display = "none";
         document.getElementById("photoPreview").style.display = "inline";
