@@ -25,18 +25,21 @@
         dojo.require("dijit.form.FilteringSelect");
         dojo.require("dijit.form.RadioButton");
         dojo.require("dijit.form.Button");
-        dojo.require("dijit.ProgressBar");
         dojo.require("dojo.data.ItemFileReadStore");
     </script>
 </head>
 
 <body>
+
 <script src="http://static.ak.connect.facebook.com/js/api_lib/v0.4/FeatureLoader.js.php" type="text/javascript"></script>
+
+<table>
+<tr>
+<td width="150px" valign="top">
 
 <script type="text/javascript">
 var friends = new Object();
 var friendsStore;
-
 
 </script>
 
@@ -48,18 +51,26 @@ var friendsStore;
     <input dojotype="dijit.form.RadioButton" id="photosFriends" name="photosWho" 
            value="friends" type="radio" onclick="dijit.byId('friendSelection').attr('disabled',false); displayAlbumList()"/> 
            <label for="photosFriends"> Friends' Photos </label>
+    <br/>
 
-    <select dojoType="dijit.form.FilteringSelect"
+    &nbsp;<select dojoType="dijit.form.FilteringSelect"
            name="friendSelection"
            id="friendSelection"
+           style="width:150px"
            searchDelay=0
            onChange="friendSelectionChanged"
            disabled="disabled">
     </select>
 </div>
 <br/>
-<div id="photoSpace"><div dojoType="dijit.ProgressBar" style="width:300px" jsId="jsProgress" id="photoLoadProgress" indeterminate="true" class="tundra"></div></div>
-
+<div id="photoSpace"></div>
+</td>
+<td valign="top">
+  <div id="mainContent">Normal content is displayed while the user is not picking a photo</div>
+  <div id="photoPreview" style="display: none; width: 500px"></div>
+</td>
+</tr>
+</table>
 <script type="text/javascript">
 
 var myAlbumCovers = "";
@@ -79,7 +90,6 @@ var friendAlbumCovers = "";
             getAlbumsXFBML(api.get_session().uid, function(albumCovers) {
             	myAlbumCovers = albumCovers;
             	document.getElementById("photoSpace").innerHTML = myAlbumCovers;
-                FB.XFBML.Host.parseDomTree();                
             });
 
             api.fql_query("SELECT uid, name FROM user WHERE uid IN (SELECT uid2 FROM friend WHERE uid1 = " + api.get_session().uid + ") order by first_name", function(results, ex) {
@@ -95,8 +105,6 @@ var friendAlbumCovers = "";
                 dijit.byId('friendSelection').searchAttr = "name";
 
                 //Enable the selection box now?
-
-                //alert(dojo.toJson(friends, true, " "));
             });
 
         });
@@ -106,18 +114,33 @@ var friendAlbumCovers = "";
     function displayAlbum(aid) {
         var api = FB.Facebook.apiClient;
         api.requireLogin(function(exception){
+            hideLargeImage();
         	document.getElementById("photoSpace").innerHTML = "Fetching contents of album...";
-	        api.fql_query("SELECT pid FROM photo WHERE aid = '" + aid + "'", function(albumPhotos) {
+        	
+	        api.fql_query("SELECT pid, src_small, src_big FROM photo WHERE aid = '" + aid + "'", function(albumPhotos) {
 	            var photoDisplay = "";
+
+                var photoTableWidth = 2;
+                var photoTableCount = 0;
+                
+	            photoDisplay += "<table>";
+
 	            for(var i = 0; i < albumPhotos.length; i++) {
-		            var photo = albumPhotos[i];
-	            	photoDisplay += "<fb:photo pid='" + photo.pid + "' size='small'></fb:photo>";
+	            	var photo = albumPhotos[i];
+                    if(photoTableCount % photoTableWidth == 0) {
+                        if(i != photoTableCount) {
+                        	photoDisplay += "</tr>";
+                        }
+                        photoDisplay += "<tr>";
+                    }
+                    
+                    photoDisplay += "<td onmouseover='showLargeImage(\"" + photo.src_big + "\")' onclick='selectImage(\"" + photo.pid + "\")'><img src=\"" + photo.src_small + "\" id='photo" + photo.pid + "'/></td>";
+                    photoTableCount++;
 	            }
+
+	            photoDisplay += "</tr></table>";
 	            
-	            document.getElementById("photoSpace").innerHTML = "<button dojoType='dijit.form.Button' onclick='displayAlbumList()'>Back to album list</button><br/>" + photoDisplay;
-	            
-	            FB.XFBML.Host.parseDomTree();
-	            
+	            document.getElementById("photoSpace").innerHTML = "<div onmouseout='hideLargeImage()'><button dojoType='dijit.form.Button' onclick='displayAlbumList()'>Back to album list</button><br/>" + photoDisplay + "</div>";
 	        });
         });
     }
@@ -127,9 +150,7 @@ var friendAlbumCovers = "";
             document.getElementById("photoSpace").innerHTML = myAlbumCovers;
         } else {
         	document.getElementById("photoSpace").innerHTML = friendAlbumCovers;
-        }
-        
-        FB.XFBML.Host.parseDomTree();        
+        }     
     }
 
     function friendSelectionChanged() {
@@ -137,8 +158,7 @@ var friendAlbumCovers = "";
 
         getAlbumsXFBML(friendUID, function(albumCovers) {
             friendAlbumCovers = albumCovers;
-            document.getElementById("photoSpace").innerHTML = friendAlbumCovers;
-            FB.XFBML.Host.parseDomTree();                
+            document.getElementById("photoSpace").innerHTML = friendAlbumCovers;           
         });
     }
 
@@ -150,14 +170,33 @@ var friendAlbumCovers = "";
     function getAlbumsXFBML(uid, afterAsyncFetchFunction) {
 
     	var albumCovers = "";
+
+    	var sequencer = new FB.BatchSequencer();
+
+    	var api = FB.Facebook.apiClient;
+
+    	var albumsPending = api.fql_query("SELECT aid, cover_pid, name FROM album WHERE owner=" + uid, sequencer);
+    	var photosPending = api.fql_query("SELECT pid, src_small, src_big FROM photo WHERE pid in (SELECT cover_pid, name FROM album WHERE owner=" + uid + ")", sequencer);
     	
     	//FB.Facebook.apiClient.photos_getAlbums(uid, null, function(albums) {
     	//Executing the cut-down FQL is quicker than getting all the unnecessary details back from photos_getAlbums()
-    	FB.Facebook.apiClient.fql_query("SELECT aid, cover_pid, name FROM album WHERE owner=" + uid, function(albums) {
+    	sequencer.execute(function() {
+
+    	    var albums = albumsPending.result;
+    	    var photos = photosPending.result;
+    		
+    		var photosMap = new Array();
+    		
+    		dojo.forEach(photos, 
+   			    function(photo, index, array) {
+   			        photosMap[photo.pid] = photo; 
+   			    }
+    	    );
+        	
             var photoTableWidth = 2;
             var photoTableCount = 0;
 
-            albumCovers += "<table>";
+            albumCovers += "<div onmouseout='hideLargeImage()'><table>";
             
             for(var i = 0; i < albums.length; i++) {
                 var album = albums[i];
@@ -169,19 +208,47 @@ var friendAlbumCovers = "";
                         albumCovers += "<tr>";
                     }
                     
-                    albumCovers += "<td><a onclick='displayAlbum(\"" + album.aid + "\")'><fb:photo pid='" + album.cover_pid + "' size='small'></fb:photo><br/>" + album.name + "</a></td>";
-
+                    albumCovers += "<td onmouseover='showLargeImage(\"" + photosMap[album.cover_pid].src_big + "\", \"Album: " + album.name.replace("'", "&apos;").replace('"', '&quot;') + "\")'><a onclick='displayAlbum(\"" + album.aid + "\")'><img src=\"" + photosMap[album.cover_pid].src_small + "\"/></a></td>";
                     photoTableCount++;
                 } else {
                     //Ignore photos without cover pictures, they're most probably empty
                 }
             }
 
-            albumCovers += "</tr></table>";
-
+            albumCovers += "</tr></table></div>";
+            
             //Do the actions that have been specified for after the fetch has completed.
             afterAsyncFetchFunction(albumCovers);
         });
+    }
+
+    //These are extension points; redefine these methods to change the mouseover behaviour.
+    function showLargeImage(imagesource, text) {
+        var content = "<img src='" + imagesource + "' style='maxwidth: 100%'/>";
+        if(text != null) {
+            content += "<br/>" + text;
+        }
+    	document.getElementById("photoPreview").innerHTML = content;
+        document.getElementById("mainContent").style.display = "none";
+        document.getElementById("photoPreview").style.display = "inline";
+    }
+
+    function hideLargeImage() {
+        document.getElementById("photoPreview").style.display = "none";
+        document.getElementById("mainContent").style.display = "inline";
+    }
+
+    var currentPID;
+    
+    function selectImage(pid) {
+        var currentSelection = document.getElementById("photo" + currentPID);
+        if(currentSelection != null) {
+            currentSelection.style.border = "";
+        }
+
+        currentPID = pid;
+        
+        document.getElementById("photo" + pid).style.border = "medium solid black";
     }
     
 </script>
